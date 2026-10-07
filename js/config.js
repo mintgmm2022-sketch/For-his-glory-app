@@ -5,3 +5,6 @@
 
 export const SUPABASE_URL = '';
 export const SUPABASE_ANON_KEY = '';
+
+// The owner's login email. With this filled in, the Owner screen asks only for the password.
+export const OWNER_EMAIL = '';

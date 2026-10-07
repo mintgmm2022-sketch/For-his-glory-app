@@ -1,5 +1,5 @@
 import { SONGS, BREAD, COMMENTS } from './data.js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL } from './config.js';
 
 /* =========================================================
    Helpers
@@ -548,10 +548,13 @@ function renderOwner() {
   }
   if (!state.session) {
     box.innerHTML = `<form class="form" id="login-form">
-      <p class="muted">Sign in to post Daily Bread, manage songs and look after the Prayer Wall.</p>
-      <label for="login-email">Email</label><input class="input" id="login-email" type="email" autocomplete="username" required>
-      <label for="login-pass">Password</label><input class="input" id="login-pass" type="password" autocomplete="current-password" required>
-      <button class="btn" type="submit">Sign in</button>
+      <div class="lock-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+      <p class="muted">Owner access. Enter your password to post Daily Bread, manage songs and look after the Prayer Wall.</p>
+      ${OWNER_EMAIL
+        ? `<input type="email" id="login-email" value="${esc(OWNER_EMAIL)}" autocomplete="username" hidden>`
+        : `<label for="login-email">Email</label><input class="input" id="login-email" type="email" autocomplete="username" required>`}
+      <label for="login-pass">Password</label><input class="input" id="login-pass" type="password" autocomplete="current-password" required autofocus>
+      <button class="btn" type="submit">Unlock</button>
     </form>`;
     return;
   }
@@ -614,7 +617,7 @@ function songEditor(s) {
 async function signIn(e) {
   e.preventDefault();
   const { error } = await db.auth.signInWithPassword({ email: $('#login-email').value.trim(), password: $('#login-pass').value });
-  if (error) toast('Email or password is not right');
+  if (error) toast(OWNER_EMAIL ? 'That password is not right' : 'Email or password is not right');
 }
 
 async function publishBread(e) {
