@@ -139,6 +139,13 @@ button { cursor: pointer; }
 .bread-card .extra b { display: block; color: var(--gold); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
 .bread-card .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* Older verses: a layered stack */
+.deck-head { display: flex; align-items: center; justify-content: space-between; margin: 18px 2px 4px; }
+.deck { display: grid; padding-bottom: 30px; touch-action: pan-y; }
+.deck .layer { grid-area: 1 / 1; transform-origin: 50% 100%; transition: transform .4s cubic-bezier(.2, .8, .2, 1), opacity .35s ease; box-shadow: 0 14px 30px rgba(0, 0, 0, .35); background: var(--card); }
+.deck-nav { display: flex; align-items: center; justify-content: space-between; margin-top: -14px; }
+.deck-nav .icon-btn:disabled { opacity: .35; }
+
 .chip { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font-size: 14px; font-weight: 600; }
 .chip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--ink-dark); }
 .chip.plain { border: none; color: var(--gold); }
