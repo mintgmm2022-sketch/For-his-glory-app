@@ -787,6 +787,16 @@ $('#seg-comments').addEventListener('click', () => { state.seg = 'comments'; ren
 $('#prayer-show-name').addEventListener('change', (e) => { $('#prayer-name').hidden = !e.target.checked; if (e.target.checked) $('#prayer-name').value ||= store.get('myName', ''); });
 $('#comment-name').value = store.get('myName', '');
 $('#notify-switch').addEventListener('click', toggleNotify);
+// Refresh: get the newest app version and the latest posts.
+$('#refresh').addEventListener('click', async () => {
+  const btn = $('#refresh');
+  btn.classList.add('busy');
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    await reg?.update();
+  } catch { /* offline */ }
+  setTimeout(() => location.reload(), 500);
+});
 $('#player-close').addEventListener('click', closePlayer);
 $('#lyrics-edit-btn').addEventListener('click', openLyricsEditor);
 $('#lyrics-edit-cancel').addEventListener('click', closeLyricsEditor);
