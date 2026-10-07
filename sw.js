@@ -1,5 +1,5 @@
 // Keeps the app working offline: the screens, songs' lyrics and saved verses.
-const VERSION = 'fhg-v6';
+const VERSION = 'fhg-v7';
 const SHELL = [
   './',
   'index.html',
@@ -28,16 +28,17 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
 
-  // App files: show the saved copy instantly, refresh it in the background.
+  // App files: always try the newest version first, fall back to the saved copy when offline.
   if (url.origin === location.origin) {
     e.respondWith(
       caches.open(VERSION).then(async (cache) => {
-        const cached = await cache.match(e.request, { ignoreSearch: true });
-        const fresh = fetch(e.request).then((res) => {
+        try {
+          const res = await fetch(e.request, { cache: 'no-cache' });
           if (res.ok) cache.put(e.request, res.clone());
           return res;
-        }).catch(() => cached || cache.match('index.html'));
-        return cached || fresh;
+        } catch {
+          return (await cache.match(e.request, { ignoreSearch: true })) || cache.match('index.html');
+        }
       })
     );
     return;
