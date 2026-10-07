@@ -504,14 +504,61 @@ function openPlayer() {
   document.body.style.overflow = 'hidden';
 }
 
+// Closing the player stops the song completely; nothing is left behind.
 function closePlayer() {
   state.playerOpen = false;
   $('#player').hidden = true;
   document.body.style.overflow = '';
-  // The video must stay visible while it plays, so it pauses when the player is closed.
-  if (yt && yt.pauseVideo && state.playing) yt.pauseVideo();
-  $('#mini').hidden = state.cur < 0;
+  if (yt && yt.stopVideo) yt.stopVideo();
+  clearInterval(ticker);
+  state.playing = false;
+  state.cur = -1;
+  closeLyricsEditor();
+  $('#mini').hidden = true;
+  $('#player-bar').style.width = '0%';
+  $('#t-now').textContent = '0:00';
+  $('#t-end').textContent = '0:00';
+  if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
+  renderSongs();
+}
+
+/* ---------- Owner: edit lyrics right in the player ---------- */
+function openLyricsEditor() {
+  const s = visibleSongs()[state.cur];
+  if (!s || !state.owner) return;
+  $('#lyrics-edit-text').value = s.lyrics || '';
+  $('#lyrics-edit-verse').value = s.verse || '';
+  $('#lyrics-edit').hidden = false;
+  $('#player-lyrics').hidden = true;
+  $('#player-verse').hidden = true;
+  $('#lyrics-edit-btn').hidden = true;
+  $('#lyrics-edit-text').focus();
+}
+
+function closeLyricsEditor() {
+  $('#lyrics-edit').hidden = true;
+  $('#player-lyrics').hidden = false;
+  $('#player-verse').hidden = false;
+  $('#lyrics-edit-btn').hidden = !state.owner;
+}
+
+async function saveLyrics(e) {
+  e.preventDefault();
+  const s = visibleSongs()[state.cur];
+  if (!s || !db) return;
+  const lyrics = $('#lyrics-edit-text').value.replace(/\r\n/g, '\n').trim();
+  const verse = $('#lyrics-edit-verse').value.trim();
+  const btn = e.submitter || e.target.querySelector('button[type=submit]');
+  btn.disabled = true;
+  const { error } = await db.from('songs').update({ lyrics, verse }).eq('id', s.id);
+  btn.disabled = false;
+  if (error) { toast('Could not save: ' + error.message); return; }
+  s.lyrics = lyrics;
+  s.verse = verse;
+  saveCache();
+  closeLyricsEditor();
   updatePlayerUI();
+  toast('Lyrics saved for everyone');
 }
 
 function updatePlayerUI() {
@@ -522,6 +569,7 @@ function updatePlayerUI() {
   $('#player-ref').textContent = s.reference || '';
   $('#player-verse').textContent = s.verse || '';
   $('#player-lyrics').textContent = s.lyrics || 'Lyrics will be shared soon.';
+  if ($('#lyrics-edit').hidden) $('#lyrics-edit-btn').hidden = !state.owner;
   $('#player-yt').href = 'https://www.youtube.com/watch?v=' + encodeURIComponent(s.youtube_id);
   $('#player-status').textContent = state.playing ? 'Now playing' : 'Paused';
   $('#play').setAttribute('aria-label', state.playing ? 'Pause' : 'Play');
@@ -703,6 +751,9 @@ $('#prayer-show-name').addEventListener('change', (e) => { $('#prayer-name').hid
 $('#comment-name').value = store.get('myName', '');
 $('#notify-switch').addEventListener('click', toggleNotify);
 $('#player-close').addEventListener('click', closePlayer);
+$('#lyrics-edit-btn').addEventListener('click', openLyricsEditor);
+$('#lyrics-edit-cancel').addEventListener('click', closeLyricsEditor);
+$('#lyrics-edit').addEventListener('submit', saveLyrics);
 $('#mini').addEventListener('click', () => { const s = visibleSongs()[state.cur]; if (s) playSong(s.id); });
 $('#play').addEventListener('click', togglePlay);
 $('#prev').addEventListener('click', () => step(-1));

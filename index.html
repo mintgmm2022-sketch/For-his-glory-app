@@ -151,7 +151,7 @@
   <!-- Full player -->
   <section class="player" id="player" aria-label="Now playing" hidden>
     <div class="player-top">
-      <button class="icon-btn" id="player-close" type="button" aria-label="Close player"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="icon-btn" id="player-close" type="button" aria-label="Stop and close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       <span class="eyebrow" id="player-status">Now playing</span>
       <a class="icon-btn" id="player-yt" href="#" target="_blank" rel="noopener" aria-label="Open on YouTube"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5H5V6h5"/></svg></a>
     </div>
@@ -172,9 +172,22 @@
       <button class="icon-btn big" id="next" type="button" aria-label="Next song"><svg viewBox="0 0 24 24" class="fill" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
     </div>
     <div class="lyrics">
-      <div class="eyebrow">Lyrics · pray along</div>
+      <div class="row-between">
+        <div class="eyebrow">Lyrics · pray along</div>
+        <button type="button" class="chip" id="lyrics-edit-btn" hidden>Edit lyrics</button>
+      </div>
       <p class="eth lyrics-verse" id="player-verse"></p>
       <p class="eth lyrics-text" id="player-lyrics"></p>
+      <form class="form lyrics-form" id="lyrics-edit" hidden>
+        <label for="lyrics-edit-verse">Verse (optional)</label>
+        <textarea id="lyrics-edit-verse" class="eth" rows="2" maxlength="1500"></textarea>
+        <label for="lyrics-edit-text">Lyrics</label>
+        <textarea id="lyrics-edit-text" class="eth" rows="14" maxlength="20000" placeholder="Paste lyrics here. Line breaks are kept."></textarea>
+        <div class="two">
+          <button type="button" class="btn secondary" id="lyrics-edit-cancel">Cancel</button>
+          <button type="submit" class="btn">Save lyrics</button>
+        </div>
+      </form>
     </div>
   </section>
 

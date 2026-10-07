@@ -201,6 +201,9 @@ svg.fill { fill: #D8DBE4 !important; stroke: none !important; }
 .play-btn { width: 64px; height: 64px; border-radius: 50%; border: none; background: var(--gold); display: grid; place-items: center; }
 .play-btn svg { width: 24px; height: 24px; fill: var(--ink-dark) !important; }
 .lyrics { flex: 1; min-height: 80px; overflow-y: auto; background: var(--card); border-radius: 18px; padding: 16px 18px; -webkit-overflow-scrolling: touch; }
+.lyrics-form { margin: 12px 0 0; }
+.lyrics-form textarea { background: var(--bg); font-size: 16px; line-height: 1.7; }
+.lyrics .chip { min-height: 36px; font-size: 13px; }
 .lyrics-verse { margin: 8px 0 12px; font-size: 15px; font-style: italic; color: #C7CBD8; }
 .lyrics-verse:empty { display: none; }
 .lyrics-text { margin: 0; font-size: 17px; line-height: 1.85; white-space: pre-line; }
