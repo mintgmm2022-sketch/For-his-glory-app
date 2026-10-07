@@ -18,7 +18,7 @@ It works offline for lyrics and saved verses, and installs on iPhone and Android
 1. In this repository, open **Settings → Pages**.
 2. Under **Build and deployment**, choose **Deploy from a branch**, branch **main**, folder **/ (root)**, then **Save**.
 3. After a minute the address appears at the top, for example
-   `https://mintgmm2022-sketch.github.io/For-his-glory-app/`.
+   `https://app.mintesinot.org/`.
 
 The app already works at this point with all songs, lyrics and Daily Bread built in. Prayers and comments stay on each phone until step 3 is done.
 
