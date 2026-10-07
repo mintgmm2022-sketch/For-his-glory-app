@@ -54,7 +54,7 @@ button { cursor: pointer; }
 /* ---------- Layout ---------- */
 .app { max-width: 520px; margin: 0 auto; min-height: 100%; position: relative; }
 .views { padding-bottom: calc(var(--tabbar-h) + 72px); }
-.page { padding: calc(env(safe-area-inset-top, 0px) + 40px) 16px 0; display: flex; flex-direction: column; gap: 10px; }
+.page { padding: calc(env(safe-area-inset-top, 0px) + 64px) 16px 0; display: flex; flex-direction: column; gap: 10px; }
 .view { animation: fade .35s ease-out both; }
 .block { margin: 0 16px 16px; }
 .list { display: flex; flex-direction: column; gap: 10px; }
@@ -71,7 +71,7 @@ button { cursor: pointer; }
 .hero-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 .owner-tap { position: absolute; z-index: 2; right: 14px; top: calc(env(safe-area-inset-top, 0px) + 8px); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: rgba(27, 33, 51, .6); border: 1px solid var(--line-2); }
 .hero-top { top: calc(env(safe-area-inset-top, 0px) + 52px) !important; }
-.refresh-tap { position: absolute; z-index: 2; left: 14px; top: calc(env(safe-area-inset-top, 0px) + 8px); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: rgba(27, 33, 51, .6); border: 1px solid var(--line-2); padding: 0; }
+.refresh-tap { position: fixed; z-index: 30; left: max(14px, calc(50% - 246px)); top: calc(env(safe-area-inset-top, 0px) + 8px); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: rgba(27, 33, 51, .6); border: 1px solid var(--line-2); padding: 0; }
 .refresh-tap svg { width: 18px; height: 18px; fill: none; stroke: var(--sub); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .refresh-tap.busy svg { animation: spin .8s linear infinite; }
 .owner-tap svg, .lock-badge svg { width: 18px; height: 18px; fill: none; stroke: var(--sub); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -139,12 +139,11 @@ button { cursor: pointer; }
 .bread-card .extra b { display: block; color: var(--gold); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
 .bread-card .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* Older verses: a layered stack */
-.deck-head { display: flex; align-items: center; justify-content: space-between; margin: 18px 2px 4px; }
-.deck { display: grid; padding-bottom: 30px; touch-action: pan-y; }
-.deck .layer { grid-area: 1 / 1; transform-origin: 50% 100%; transition: transform .4s cubic-bezier(.2, .8, .2, 1), opacity .35s ease; box-shadow: 0 14px 30px rgba(0, 0, 0, .35); background: var(--card); }
-.deck-nav { display: flex; align-items: center; justify-content: space-between; margin-top: -14px; }
-.deck-nav .icon-btn:disabled { opacity: .35; }
+/* Older verses: each card slides up and settles over the one before it */
+.stack-label { margin: 18px 2px 0; }
+.stack { display: flex; flex-direction: column; padding-bottom: 40px; }
+.stack .layer { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 64px + var(--i) * 10px); z-index: calc(1 + var(--i)); margin-bottom: 70px; background: var(--card); box-shadow: 0 -10px 30px rgba(0, 0, 0, .35); }
+.stack .layer:last-child { margin-bottom: 0; }
 
 .chip { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font-size: 14px; font-weight: 600; }
 .chip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--ink-dark); }

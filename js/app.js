@@ -259,75 +259,20 @@ function breadCard(b, extraClass = '', extraAttrs = '') {
     </article>`;
 }
 
-// The newest three are listed; older verses sit in a layered stack you swipe through.
+// The newest three are listed; after that, each older verse slides up over the one before it as you scroll.
 const SHOWN = 3;
-let deckIndex = 0;
 
 function renderBread() {
   const top = state.bread.slice(0, SHOWN);
   const older = state.bread.slice(SHOWN);
-  deckIndex = Math.min(deckIndex, Math.max(0, older.length - 1));
   let html = top.map((b) => breadCard(b)).join('') || '<p class="empty">No Daily Bread yet.</p>';
   if (older.length) {
-    html += `<div class="deck-head">
-        <span class="label" style="margin:0">Earlier verses</span>
-        <span class="muted small" id="deck-count">${deckIndex + 1} of ${older.length}</span>
-      </div>
-      <div class="deck" id="deck" aria-roledescription="carousel">
-        ${older.map((b, i) => breadCard(b, 'layer', `data-layer="${i}" aria-hidden="${i !== deckIndex}"`)).join('')}
-      </div>
-      <div class="deck-nav">
-        <button type="button" class="icon-btn" id="deck-prev" aria-label="Newer verse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
-        <span class="muted small">Swipe to see more</span>
-        <button type="button" class="icon-btn" id="deck-next" aria-label="Older verse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+    html += `<div class="label stack-label">Earlier verses</div>
+      <div class="stack">
+        ${older.map((b, i) => breadCard(b, 'layer', `style="--i:${i}"`)).join('')}
       </div>`;
   }
   $('#bread-list').innerHTML = html;
-  if (older.length) { layoutDeck(); bindDeck(older.length); }
-}
-
-function layoutDeck() {
-  const layers = document.querySelectorAll('#deck .layer');
-  layers.forEach((el) => {
-    const d = Number(el.dataset.layer) - deckIndex;
-    let t, o, z, pe = 'none';
-    if (d < 0) { t = 'translateX(-115%) rotate(-6deg)'; o = 0; z = 1; }
-    else if (d === 0) { t = 'none'; o = 1; z = 50; pe = 'auto'; }
-    else if (d <= 2) { t = `translateY(${d * 12}px) scale(${1 - d * 0.06})`; o = 1 - d * 0.3; z = 50 - d; }
-    else { t = 'translateY(28px) scale(.9)'; o = 0; z = 1; }
-    el.style.transform = t;
-    el.style.opacity = o;
-    el.style.zIndex = z;
-    el.style.pointerEvents = pe;
-    el.setAttribute('aria-hidden', d !== 0);
-  });
-  const c = $('#deck-count');
-  if (c) c.textContent = `${deckIndex + 1} of ${layers.length}`;
-  const prev = $('#deck-prev'), next = $('#deck-next');
-  if (prev) prev.disabled = deckIndex === 0;
-  if (next) next.disabled = deckIndex >= layers.length - 1;
-}
-
-function moveDeck(dir, total) {
-  const n = Math.max(0, Math.min(total - 1, deckIndex + dir));
-  if (n === deckIndex) return;
-  deckIndex = n;
-  layoutDeck();
-}
-
-function bindDeck(total) {
-  $('#deck-prev').onclick = () => moveDeck(-1, total);
-  $('#deck-next').onclick = () => moveDeck(1, total);
-  const deck = $('#deck');
-  let x0 = null, y0 = null;
-  deck.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
-  deck.addEventListener('touchend', (e) => {
-    if (x0 === null) return;
-    const dx = e.changedTouches[0].clientX - x0;
-    const dy = e.changedTouches[0].clientY - y0;
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) moveDeck(dx < 0 ? 1 : -1, total);
-    x0 = y0 = null;
-  });
 }
 
 async function toggleAmen(id) {
