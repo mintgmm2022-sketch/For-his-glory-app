@@ -8,3 +8,6 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 // The owner's login email. With this filled in, the Owner screen asks only for the password.
 export const OWNER_EMAIL = '5zkmnm52d5@privaterelay.appleid.com';
+
+// The owner password has been created, so the "create password" box is hidden.
+export const OWNER_READY = true;

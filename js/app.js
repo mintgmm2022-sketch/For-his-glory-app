@@ -1,5 +1,5 @@
 import { SONGS, BREAD, COMMENTS } from './data.js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL, OWNER_READY } from './config.js';
 
 /* =========================================================
    Helpers
@@ -604,7 +604,7 @@ function renderOwner() {
       <label for="login-pass">Password</label><input class="input" id="login-pass" type="password" autocomplete="current-password" required autofocus>
       <button class="btn" type="submit">Unlock</button>
     </form>
-    ${OWNER_EMAIL ? `<details class="editor" style="margin-top:8px">
+    ${OWNER_EMAIL && !OWNER_READY ? `<details class="editor" style="margin-top:8px">
       <summary><span class="grow strong">First time? Create your password</span></summary>
       <form class="form" id="create-pass-form">
         <input type="email" value="${esc(OWNER_EMAIL)}" autocomplete="username" hidden>
