@@ -235,3 +235,10 @@ svg.fill { fill: #D8DBE4 !important; stroke: none !important; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
   .spin.on, .spin.slow { animation: none; }
 }
+
+/* Keep stacked layers a similar height so nothing peeks out from underneath; tap a message to read it all. */
+.stack .layer .msg { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow: hidden; cursor: pointer; }
+.stack .layer.open { position: relative; top: auto; }
+.stack .layer.open .msg { display: block; -webkit-line-clamp: unset; }
+.stack .layer .more { font-size: 13px; color: var(--gold); font-weight: 600; }
+.stack .layer.open .more { display: none; }

@@ -262,17 +262,25 @@ function breadCard(b, extraClass = '', extraAttrs = '') {
 // The newest three are listed; after that, each older verse slides up over the one before it as you scroll.
 const SHOWN = 3;
 
+// Any list longer than three: the first three are listed, the rest stack as layers while scrolling.
+function stackify(items, card, label) {
+  if (!items.length) return '';
+  const head = items.slice(0, SHOWN).map((x) => card(x, '', '')).join('');
+  const rest = items.slice(SHOWN);
+  if (!rest.length) return head;
+  return head + `<div class="label stack-label">${esc(label)}</div>
+    <div class="stack">${rest.map((x, i) => {
+      const html = card(x, ' layer', `style="--i:${i}"`);
+      let out = html.includes('style="--i:') ? html : html.replace(/^(\s*<\w+)/, `$1 style="--i:${i}"`);
+      const m = out.match(/<div class="msg">([\s\S]*?)<\/div>/);
+      if (m && (m[1].length > 220 || m[1].split('\n').length > 5)) out = out.replace(m[0], m[0] + '<span class="more">Tap to read more</span>');
+      return out;
+    }).join('')}</div>`;
+}
+
 function renderBread() {
-  const top = state.bread.slice(0, SHOWN);
-  const older = state.bread.slice(SHOWN);
-  let html = top.map((b) => breadCard(b)).join('') || '<p class="empty">No Daily Bread yet.</p>';
-  if (older.length) {
-    html += `<div class="label stack-label">Earlier verses</div>
-      <div class="stack">
-        ${older.map((b, i) => breadCard(b, 'layer', `style="--i:${i}"`)).join('')}
-      </div>`;
-  }
-  $('#bread-list').innerHTML = html;
+  $('#bread-list').innerHTML = stackify(state.bread, (b, layer, attrs) => breadCard(b, layer.trim(), attrs), 'Earlier verses')
+    || '<p class="empty">No Daily Bread yet.</p>';
 }
 
 async function toggleAmen(id) {
@@ -312,9 +320,9 @@ function renderTogether() {
   $('#pane-comments').hidden = state.seg !== 'comments';
 
   const prayers = db ? state.prayers : [...local.prayers, ...state.prayers];
-  $('#prayer-list').innerHTML = prayers.map((p) => {
+  $('#prayer-list').innerHTML = stackify(prayers, (p, layer) => {
     const mine = state.prayed.has(String(p.id));
-    return `<div class="post${p.hidden ? ' hidden-item' : ''}">
+    return `<div class="post${p.hidden ? ' hidden-item' : ''}${layer}">
       <div class="msg">${esc(p.message)}</div>
       <div class="by"><span><strong>${esc(p.name || 'Anonymous')}</strong> · ${esc(fmtShort(p.created_at))}</span>
         <span>
@@ -323,14 +331,14 @@ function renderTogether() {
         </span>
       </div>
     </div>`;
-  }).join('') || '<p class="empty">The Prayer Wall is ready for its first prayer.</p>';
+  }, 'Earlier prayers') || '<p class="empty">The Prayer Wall is ready for its first prayer.</p>';
 
   const comments = db ? state.comments : [...local.comments, ...state.comments];
-  $('#comment-list').innerHTML = comments.map((c) => `<div class="post${c.hidden ? ' hidden-item' : ''}">
+  $('#comment-list').innerHTML = stackify(comments, (c, layer) => `<div class="post${c.hidden ? ' hidden-item' : ''}${layer}">
       <div class="by"><strong>${esc(c.name || 'Anonymous')}</strong><span>${esc(fmtShort(c.created_at))}</span></div>
       <div class="msg">${esc(c.message)}</div>
       ${state.owner ? `<div class="by"><span></span><span>${ownerTools('comments', c)}</span></div>` : ''}
-    </div>`).join('') || '<p class="empty">No comments yet.</p>';
+    </div>`, 'Earlier comments') || '<p class="empty">No comments yet.</p>';
 }
 
 function ownerTools(table, row) {
@@ -784,6 +792,12 @@ document.addEventListener('click', (e) => {
   else if (d.del) { const [table, id] = d.del.split(':'); remove(table, Number(id)); }
   else if (d.delBread) remove('bread', Number(d.delBread));
   else if ('signout' in d) db.auth.signOut();
+});
+
+// Tap a stacked prayer or comment to open it fully.
+document.addEventListener('click', (e) => {
+  const m = e.target.closest('.stack .layer .msg, .stack .layer .more');
+  if (m) m.closest('.layer').classList.toggle('open');
 });
 
 document.addEventListener('submit', (e) => {
