@@ -603,11 +603,22 @@ function renderOwner() {
         : `<label for="login-email">Email</label><input class="input" id="login-email" type="email" autocomplete="username" required>`}
       <label for="login-pass">Password</label><input class="input" id="login-pass" type="password" autocomplete="current-password" required autofocus>
       <button class="btn" type="submit">Unlock</button>
-    </form>`;
+    </form>
+    ${OWNER_EMAIL ? `<details class="editor" style="margin-top:8px">
+      <summary><span class="grow strong">First time? Create your password</span></summary>
+      <form class="form" id="create-pass-form">
+        <input type="email" value="${esc(OWNER_EMAIL)}" autocomplete="username" hidden>
+        <label for="new-pass">New password (at least 8 characters)</label>
+        <input class="input" id="new-pass" type="password" autocomplete="new-password" minlength="8" required>
+        <label for="new-pass2">Type it again</label>
+        <input class="input" id="new-pass2" type="password" autocomplete="new-password" minlength="8" required>
+        <button class="btn" type="submit">Create password</button>
+      </form>
+    </details>` : ''}`;
     return;
   }
   if (!state.owner) {
-    box.innerHTML = `<p class="muted">You’re signed in, but this account isn’t marked as the owner yet. Follow step 5 in the README.</p>
+    box.innerHTML = `<p class="muted">You’re signed in, but this account isn’t marked as the owner yet. Ask Claude to finish the owner setup, then sign out and unlock again.</p>
       <button class="btn secondary" type="button" data-signout>Sign out</button>`;
     return;
   }
@@ -665,7 +676,32 @@ function songEditor(s) {
 async function signIn(e) {
   e.preventDefault();
   const { error } = await db.auth.signInWithPassword({ email: $('#login-email').value.trim(), password: $('#login-pass').value });
-  if (error) toast(OWNER_EMAIL ? 'That password is not right' : 'Email or password is not right');
+  if (!error) return;
+  if (/confirm/i.test(error.message)) toast('Almost ready. Ask Claude to finish the owner setup.');
+  else toast(OWNER_EMAIL ? 'That password is not right' : 'Email or password is not right');
+}
+
+// First time only: the owner chooses a password right here in the app.
+async function createOwnerPassword(e) {
+  e.preventDefault();
+  const p1 = $('#new-pass').value;
+  const p2 = $('#new-pass2').value;
+  if (p1.length < 8) { toast('Use at least 8 characters'); return; }
+  if (p1 !== p2) { toast('The two passwords are not the same'); return; }
+  const btn = e.submitter || e.target.querySelector('button[type=submit]');
+  btn.disabled = true;
+  const { data, error } = await db.auth.signUp({ email: OWNER_EMAIL, password: p1 });
+  btn.disabled = false;
+  if (error) {
+    toast(/registered|exists/i.test(error.message) ? 'Your password is already set. Use Unlock.' : 'Could not create: ' + error.message);
+    return;
+  }
+  if (data.session) { toast('Password created'); return; }
+  $('#owner-body').innerHTML = `<div class="lock-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+    <p class="strong">Your password is saved.</p>
+    <p class="muted">Tell Claude “password created” to finish the setup. Then come back here and tap Unlock.</p>
+    <button class="btn secondary" type="button" id="back-to-unlock">Back</button>`;
+  $('#back-to-unlock').addEventListener('click', renderOwner);
 }
 
 async function publishBread(e) {
@@ -741,6 +777,7 @@ document.addEventListener('submit', (e) => {
   if (f.id === 'prayer-form') sharePrayer(e);
   else if (f.id === 'comment-form') sendComment(e);
   else if (f.id === 'login-form') signIn(e);
+  else if (f.id === 'create-pass-form') createOwnerPassword(e);
   else if (f.id === 'bread-form') publishBread(e);
   else if (f.dataset.songForm) { e.preventDefault(); saveSong(f); }
 });
