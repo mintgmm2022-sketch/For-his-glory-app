@@ -2,11 +2,14 @@
 
 The installable app for **For His Glory**: Amharic worship songs by Mintesinot Gebremichael, Daily Bread, and a shared Prayer Wall.
 
-- **Today** — the newest Daily Bread, the song of the day, a reading streak and new-verse alerts
-- **Songs** — every song plays inside the app with a spinning record and the full lyrics to pray along
-- **Daily Bread** — every verse, with Amen and Share
-- **Together** — a live Prayer Wall (with “I prayed”) and comments, shared by everyone
-- **Owner** — sign in to post Daily Bread, add or edit songs and lyrics, and hide or delete posts
+- **Today**: the newest Daily Bread, the song of the day, a reading streak, Install and Share buttons, and Daily Bread notifications
+- **Songs**: every song plays inside the app with a spinning record and the full lyrics to pray along
+- **Daily Bread**: every verse, with Amen and **Share as a picture** (the verse over changing cross backgrounds)
+- **Together**: a live Prayer Wall with “I prayed” and **replies**, plus comments
+- **Owner** (🔒): post or **schedule** Daily Bread, edit posts, edit songs and lyrics, hide or delete posts, and see **your stats**
+
+Daily Bread notifications are sent by the `send-bread` function in Supabase: right away when you post for today, and at 8:00 Luxembourg time for scheduled posts.
+Database files: `supabase/schema.sql`, `supabase/seed.sql`, `supabase/replies_and_stats.sql`.
 
 It works offline for lyrics and saved verses, and installs on iPhone and Android from the browser.
 

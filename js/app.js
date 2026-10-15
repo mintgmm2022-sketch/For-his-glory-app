@@ -2,6 +2,7 @@ import { SONGS, BREAD, COMMENTS } from './data.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL, OWNER_READY, VAPID_PUBLIC_KEY, PUSH_READY } from './config.js';
 import { t, getLang, locale, applyStatic } from './i18n.js';
 import { initInstall, showInstall, canShowInstall } from './install.js';
+import { renderVerseImage, canvasToFile, BACKGROUND_COUNT } from './verse-image.js';
 
 /* =========================================================
    Helpers
@@ -68,7 +69,11 @@ const state = {
   playerOpen: false,
   owner: false,
   session: null,
-  editBread: null
+  editBread: null,
+  replies: {},
+  replyOpen: null,
+  replyDraft: '',
+  repliesShown: new Set()
 };
 
 const local = { prayers: store.get('localPrayers', []), comments: store.get('localComments', []) };
@@ -92,8 +97,10 @@ async function connect() {
     const { data } = await db.auth.getSession();
     state.session = data.session;
     db.auth.onAuthStateChange((_e, session) => { state.session = session; checkOwner(); });
-    await Promise.all([loadSongs(), loadBread(), loadPrayers(), loadComments(), checkOwner()]);
+    await Promise.all([loadSongs(), loadBread(), loadPrayers(), loadComments(), loadReplies(), checkOwner()]);
     subscribe();
+    // Count one app open per phone per day.
+    if (store.get('openTracked', '') !== dayKey()) { store.set('openTracked', dayKey()); track('open'); }
   } catch (err) {
     console.warn('Offline or not reachable, using saved content.', err);
   }
@@ -103,7 +110,7 @@ async function checkOwner() {
   if (!db || !state.session) { state.owner = false; renderOwner(); renderTogether(); renderToday(); renderBread(); return; }
   const { data } = await db.rpc('is_owner');
   state.owner = data === true;
-  await Promise.all([loadSongs(), loadBread(), loadPrayers(), loadComments()]);
+  await Promise.all([loadSongs(), loadBread(), loadPrayers(), loadComments(), loadReplies()]);
   renderOwner(); renderToday(); renderBread(); renderTogether();
 }
 
@@ -127,6 +134,15 @@ async function loadPrayers() {
   const { data, error } = await db.from('prayers').select('*').order('created_at', { ascending: false }).limit(100);
   if (!error && data) { state.prayers = data; saveCache(); renderTogether(); }
 }
+async function loadReplies() {
+  if (!db) return;
+  const { data, error } = await db.from('prayer_replies').select('*').order('created_at').limit(1000);
+  if (!error && data) {
+    state.replies = {};
+    for (const r of data) (state.replies[r.prayer_id] ||= []).push(r);
+    renderTogether();
+  }
+}
 async function loadComments() {
   if (!db) return;
   const { data, error } = await db.from('comments').select('*').order('created_at', { ascending: false }).limit(100);
@@ -135,7 +151,7 @@ async function loadComments() {
 
 function subscribe() {
   const debounce = (fn) => { let timer; return () => { clearTimeout(timer); timer = setTimeout(fn, 400); }; };
-  const reload = { songs: debounce(loadSongs), bread: debounce(loadBread), prayers: debounce(loadPrayers), comments: debounce(loadComments) };
+  const reload = { songs: debounce(loadSongs), bread: debounce(loadBread), prayers: debounce(loadPrayers), comments: debounce(loadComments), replies: debounce(loadReplies) };
   db.channel('fhg-live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'songs' }, reload.songs)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'bread' }, (p) => {
@@ -143,9 +159,10 @@ function subscribe() {
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'prayers' }, reload.prayers)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, reload.comments)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'prayer_replies' }, reload.replies)
     .subscribe();
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') { reload.bread(); reload.prayers(); reload.comments(); }
+    if (document.visibilityState === 'visible') { reload.bread(); reload.prayers(); reload.comments(); reload.replies(); }
   });
 }
 
@@ -319,14 +336,81 @@ async function toggleAmen(id) {
   saveCache();
 }
 
+// Share: opens a picture of the verse over a cross background, ready to send.
+const pic = { bread: null, choice: 0, canvas: null };
+
+async function drawPicture() {
+  const b = pic.bread;
+  $('#sharepic-busy').hidden = false;
+  try {
+    pic.canvas = await renderVerseImage({ verse: b.verse_text, reference: b.reference, date: b.posted_on }, pic.choice);
+    $('#sharepic-img').src = pic.canvas.toDataURL('image/jpeg', 0.88);
+  } catch (err) {
+    console.warn(err);
+    toast(t('toast.error'));
+  } finally {
+    $('#sharepic-busy').hidden = true;
+  }
+}
+
 async function shareBread(id) {
   const b = state.bread.find((x) => x.id === id);
   if (!b) return;
-  const text = `${b.verse_text}\n— ${b.reference}\n\nFor His Glory · ለክብሩ`;
+  pic.bread = b;
+  pic.choice = Math.abs(Number(b.id) * 5) % BACKGROUND_COUNT; // each verse starts with its own background
+  $('#sharepic-img').removeAttribute('src');
+  $('#sharepic').hidden = false;
+  document.body.classList.add('sheet-open');
+  await drawPicture();
+}
+
+function closePicture() {
+  $('#sharepic').hidden = true;
+  document.body.classList.remove('sheet-open');
+}
+
+const pictureName = () => `daily-bread-${pic.bread.posted_on}.jpg`;
+
+async function sharePicture() {
+  if (!pic.canvas) return;
+  const file = await canvasToFile(pic.canvas, pictureName());
+  const data = { files: [file], text: `${pic.bread.reference ? pic.bread.reference + ' · ' : ''}For His Glory · app.mintesinot.org` };
   try {
-    if (navigator.share) await navigator.share({ title: t('bread.title'), text, url: location.origin + location.pathname });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share(data);
+      track('share');
+    } else {
+      savePicture();
+    }
+  } catch { /* closed the share sheet */ }
+}
+
+async function savePicture() {
+  if (!pic.canvas) return;
+  const file = await canvasToFile(pic.canvas, pictureName());
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url; a.download = pictureName();
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  track('share');
+  toast('Picture saved');
+}
+
+async function shareText() {
+  const b = pic.bread;
+  const text = `${b.verse_text}\n— ${b.reference}\n\nFor His Glory · ለክብሩ\nhttps://app.mintesinot.org/`;
+  try {
+    if (navigator.share) await navigator.share({ text });
     else { await navigator.clipboard.writeText(text); toast(t('toast.copied')); }
+    track('share');
   } catch { /* closed share sheet */ }
+}
+
+// Anonymous counts for the owner's stats (no personal data).
+function track(kind) {
+  if (!db) return;
+  db.rpc('track', { p_kind: kind }).then(() => {}, () => {});
 }
 
 /* =========================================================
@@ -349,6 +433,7 @@ function renderTogether() {
           ${state.owner ? ownerTools('prayers', p) : ''}
         </span>
       </div>
+      ${repliesBlock(p)}
     </div>`;
   }, t('prayer.earlier')) || `<p class="empty">${esc(t('prayer.empty'))}</p>`;
 
@@ -358,6 +443,49 @@ function renderTogether() {
       <div class="msg">${esc(c.message)}</div>
       ${state.owner ? `<div class="by"><span></span><span>${ownerTools('comments', c)}</span></div>` : ''}
     </div>`, t('comment.earlier')) || `<p class="empty">${esc(t('comment.empty'))}</p>`;
+}
+
+// Replies under a prayer: the latest two show, the rest open with "Show all".
+function repliesBlock(p) {
+  if (!db || String(p.id).startsWith('l')) return '';
+  const all = state.replies[p.id] || [];
+  const showAll = state.repliesShown.has(p.id);
+  const list = showAll ? all : all.slice(-2);
+  const open = state.replyOpen === p.id;
+  return `<div class="replies">
+    ${all.length > list.length ? `<button type="button" class="chip plain small-chip" data-replies-all="${p.id}">Show all ${all.length} replies</button>` : ''}
+    ${list.map((r) => `<div class="reply${r.hidden ? ' hidden-item' : ''}">
+      <div class="reply-msg">${esc(r.message)}</div>
+      <div class="reply-by"><span><strong>${esc(r.name || t('anonymous'))}</strong> · ${esc(fmtShort(r.created_at))}</span>
+        ${state.owner ? `<span>${ownerTools('prayer_replies', r)}</span>` : ''}</div>
+    </div>`).join('')}
+    ${open ? `<form class="reply-form" data-reply-form="${p.id}">
+        <textarea rows="2" maxlength="600" placeholder="Write an encouraging word or a short prayer…" aria-label="Your reply" required>${esc(state.replyDraft)}</textarea>
+        <input class="input" maxlength="60" placeholder="Your name (optional)" aria-label="Your name" value="${esc(store.get('myName', ''))}">
+        <div class="two">
+          <button type="button" class="btn secondary" data-reply-cancel>Cancel</button>
+          <button type="submit" class="btn">Send</button>
+        </div>
+      </form>` : `<button type="button" class="chip plain small-chip" data-reply="${p.id}">Reply${all.length ? ` · ${all.length}` : ''}</button>`}
+  </div>`;
+}
+
+async function sendReply(form) {
+  const prayerId = Number(form.dataset.replyForm);
+  const message = form.querySelector('textarea').value.trim();
+  if (!message) return;
+  const name = form.querySelector('input').value.trim() || null;
+  if (name) store.set('myName', name);
+  const btn = form.querySelector('button[type=submit]');
+  btn.disabled = true;
+  const { error } = await db.from('prayer_replies').insert({ prayer_id: prayerId, message, name });
+  btn.disabled = false;
+  if (error) { toast(t('toast.error')); return; }
+  state.replyOpen = null;
+  state.replyDraft = '';
+  state.repliesShown.add(prayerId);
+  await loadReplies();
+  toast('Reply sent');
 }
 
 function ownerTools(table, row) {
@@ -511,6 +639,7 @@ async function playSong(id) {
   if (i < 0) return;
   const same = i === state.cur;
   state.cur = i;
+  if (!same) track('play');
   openPlayer();
   updatePlayerUI();
   renderSongs();
@@ -699,6 +828,7 @@ function renderOwner() {
   const editing = state.editBread ? state.bread.find((x) => x.id === state.editBread) : null;
   box.innerHTML = `
     <p class="muted">Welcome, Mintesinot. Changes appear for everyone instantly.</p>
+    <section class="stats" id="stats" aria-label="Your stats"><div class="label">Your stats</div><p class="muted small">Loading…</p></section>
 
     <details class="editor" open id="bread-editor">
       <summary><span class="grow strong">${editing ? 'Edit Daily Bread' : 'Write Daily Bread'}</span></summary>
@@ -735,6 +865,48 @@ function renderOwner() {
   dateInput.addEventListener('input', hint);
   hint();
   $('#b-cancel')?.addEventListener('click', () => { state.editBread = null; renderOwner(); });
+  loadStats();
+}
+
+// Owner stats: how the app is being used (anonymous counts only).
+let statsCache = null;
+async function loadStats() {
+  const box = $('#stats');
+  if (!box || !db) return;
+  if (statsCache) drawStats(statsCache);
+  const { data, error } = await db.rpc('owner_stats');
+  if (error || !data) { if (!statsCache) box.innerHTML = '<div class="label">Your stats</div><p class="muted small">Stats aren’t available yet.</p>'; return; }
+  statsCache = data;
+  drawStats(data);
+}
+
+function drawStats(s) {
+  const box = $('#stats');
+  if (!box) return;
+  const days = s.days || [];
+  const sum = (k, n) => days.slice(-n).reduce((a, d) => a + (d[k] || 0), 0);
+  const today = days[days.length - 1] || {};
+  const max = Math.max(1, ...days.map((d) => d.opens || 0));
+  const tile = (num, label) => `<div class="tile"><strong>${num}</strong><span>${label}</span></div>`;
+  box.innerHTML = `<div class="label">Your stats</div>
+    <div class="tiles">
+      ${tile(today.opens || 0, 'opened the app today')}
+      ${tile(sum('opens', 7), 'app opens, last 7 days')}
+      ${tile(sum('plays', 7), 'song plays, last 7 days')}
+      ${tile(sum('shares', 7), 'verses shared, last 7 days')}
+      ${tile(s.subscribers, 'get notifications')}
+      ${tile(sum('installs', 14), 'installs, last 14 days')}
+      ${tile(s.amens, 'Amens in total')}
+      ${tile(s.prayed, '“I prayed” taps')}
+      ${tile(s.prayers, 'prayer requests')}
+      ${tile(s.replies, 'prayer replies')}
+      ${tile(s.comments, 'comments')}
+      ${tile(s.bread + (s.scheduled ? ` <small>+${s.scheduled}</small>` : ''), s.scheduled ? 'Daily Breads (+ scheduled)' : 'Daily Breads posted')}
+    </div>
+    <div class="chart" role="img" aria-label="App opens per day for the last 14 days">
+      ${days.map((d) => `<div class="bar" title="${esc(fmtDate(d.day))}: ${d.opens} opens"><i style="height:${Math.round(((d.opens || 0) / max) * 100)}%"></i><span>${new Date(d.day + 'T12:00:00').getDate()}</span></div>`).join('')}
+    </div>
+    <p class="note">App opens per day, last 14 days. Each phone counts once a day.</p>`;
 }
 
 // The first day from today that has no Daily Bread yet, so writing ahead is one tap per day.
@@ -872,13 +1044,13 @@ async function saveSong(form) {
 
 async function moderate(table, id, hidden) {
   const { error } = await db.from(table).update({ hidden }).eq('id', id);
-  if (error) toast('Could not update'); else (table === 'prayers' ? loadPrayers() : loadComments());
+  if (error) toast('Could not update'); else (table === 'prayers' ? loadPrayers() : table === 'prayer_replies' ? loadReplies() : loadComments());
 }
 async function remove(table, id) {
   if (!confirm('Delete this for everyone?')) return;
   const { error } = await db.from(table).delete().eq('id', id);
   if (error) { toast('Could not delete'); return; }
-  if (table === 'prayers') loadPrayers(); else if (table === 'comments') loadComments(); else loadBread();
+  if (table === 'prayers') loadPrayers(); else if (table === 'comments') loadComments(); else if (table === 'prayer_replies') loadReplies(); else loadBread();
 }
 
 /* =========================================================
@@ -897,7 +1069,14 @@ document.addEventListener('click', (e) => {
   else if (d.del) { const [table, id] = d.del.split(':'); remove(table, Number(id)); }
   else if (d.delBread) remove('bread', Number(d.delBread));
   else if (d.editBread) editBread(Number(d.editBread));
+  else if (d.reply) { state.replyOpen = Number(d.reply); state.replyDraft = ''; renderTogether(); setTimeout(() => document.querySelector(`[data-reply-form="${d.reply}"] textarea`)?.focus(), 0); }
+  else if ('replyCancel' in d) { state.replyOpen = null; state.replyDraft = ''; renderTogether(); }
+  else if (d.repliesAll) { state.repliesShown.add(Number(d.repliesAll)); renderTogether(); }
   else if ('signout' in d) db.auth.signOut();
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.closest('[data-reply-form]') && e.target.tagName === 'TEXTAREA') state.replyDraft = e.target.value;
 });
 
 // Tap a stacked prayer or comment to open it fully.
@@ -914,6 +1093,7 @@ document.addEventListener('submit', (e) => {
   else if (f.id === 'create-pass-form') createOwnerPassword(e);
   else if (f.id === 'bread-form') publishBread(e);
   else if (f.dataset.songForm) { e.preventDefault(); saveSong(f); }
+  else if (f.dataset.replyForm) { e.preventDefault(); sendReply(f); }
 });
 
 $('#seg-prayers').addEventListener('click', () => { state.seg = 'prayers'; renderTogether(); });
@@ -922,6 +1102,12 @@ $('#prayer-show-name').addEventListener('change', (e) => { $('#prayer-name').hid
 $('#comment-name').value = store.get('myName', '');
 $('#notify-switch').addEventListener('click', toggleNotify);
 // Install and share
+$('#sharepic-share').addEventListener('click', sharePicture);
+$('#sharepic-save').addEventListener('click', savePicture);
+$('#sharepic-next').addEventListener('click', () => { pic.choice = (pic.choice + 1) % BACKGROUND_COUNT; drawPicture(); });
+$('#sharepic-text').addEventListener('click', shareText);
+$('#sharepic-close').addEventListener('click', closePicture);
+$('#sharepic').addEventListener('click', (e) => { if (e.target.id === 'sharepic') closePicture(); });
 $('#install-btn').hidden = !canShowInstall();
 $('#install-btn').addEventListener('click', showInstall);
 $('#share-app').addEventListener('click', async () => {
@@ -955,6 +1141,14 @@ $('#play').addEventListener('click', togglePlay);
 $('#prev').addEventListener('click', () => step(-1));
 $('#next').addEventListener('click', () => step(1));
 window.addEventListener('hashchange', route);
+window.addEventListener('appinstalled', () => track('install'));
+// The refresh button slides away while scrolling down and comes back when scrolling up.
+let lastY = 0;
+window.addEventListener('scroll', () => {
+  const yNow = window.scrollY;
+  $('#refresh').classList.toggle('tucked', yNow > 80 && yNow > lastY);
+  lastY = yNow;
+}, { passive: true });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.playerOpen) closePlayer(); });
 
 if ('mediaSession' in navigator) {

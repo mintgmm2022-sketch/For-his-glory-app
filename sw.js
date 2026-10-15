@@ -1,5 +1,5 @@
 // Keeps the app working offline: the screens, songs' lyrics and saved verses.
-const VERSION = 'fhg-v19';
+const VERSION = 'fhg-v20';
 const SHELL = [
   './',
   'index.html',
@@ -9,6 +9,9 @@ const SHELL = [
   'js/config.js',
   'js/i18n.js',
   'js/install.js',
+  'js/verse-image.js',
+  'img/share-cross.jpg',
+  'img/share-cross-2.jpg',
   'img/cover.jpg',
   'icons/icon-192.png',
   'icons/icon-512.png',
