@@ -11,3 +11,9 @@ export const OWNER_EMAIL = '5zkmnm52d5@privaterelay.appleid.com';
 
 // The owner password has been created, so the "create password" box is hidden.
 export const OWNER_READY = true;
+
+// Public key for Daily Bread notifications (the private half is kept secret on the server).
+export const VAPID_PUBLIC_KEY = 'BNOqAOE23zN9-hYibku4N6JfB8rFtXOMTYoF8QsuTqFWzrwMCBCBuEWwh54U54UPt_YDScz1pGvJ3oXXPYJE5D0';
+
+// Turns on the Daily Bread notification switch once the server side is set up.
+export const PUSH_READY = false;

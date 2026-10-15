@@ -1,5 +1,5 @@
 // Keeps the app working offline: the screens, songs' lyrics and saved verses.
-const VERSION = 'fhg-v14';
+const VERSION = 'fhg-v15';
 const SHELL = [
   './',
   'index.html',
@@ -7,6 +7,7 @@ const SHELL = [
   'js/app.js',
   'js/data.js',
   'js/config.js',
+  'js/i18n.js',
   'img/cover.jpg',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -56,6 +57,19 @@ self.addEventListener('fetch', (e) => {
       })
     );
   }
+});
+
+// A new Daily Bread pushed from the server, shown even when the app is closed.
+self.addEventListener('push', (e) => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch { data = { body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(data.title || 'የዕለት እንጀራ · Daily Bread', {
+    body: data.body || '',
+    icon: 'icons/icon-192.png',
+    badge: 'icons/icon-192.png',
+    tag: data.tag || 'daily-bread',
+    data: { url: data.url || './#today' }
+  }));
 });
 
 self.addEventListener('notificationclick', (e) => {

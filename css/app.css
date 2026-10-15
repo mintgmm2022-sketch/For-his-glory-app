@@ -242,3 +242,11 @@ svg.fill { fill: #D8DBE4 !important; stroke: none !important; }
 .stack .layer.open .msg { display: block; -webkit-line-clamp: unset; }
 .stack .layer .more { font-size: 13px; color: var(--gold); font-weight: 600; }
 .stack .layer.open .more { display: none; }
+
+/* Language switch, next to refresh on every page */
+.lang-tap { position: fixed; z-index: 30; left: calc(max(14px, calc(50% - 246px)) + 48px); top: calc(env(safe-area-inset-top, 0px) + 8px); min-width: 44px; height: 40px; padding: 0 12px; border-radius: 999px; background: rgba(27, 33, 51, .6); border: 1px solid var(--line-2); color: var(--sub); font-family: "Noto Serif Ethiopic", "Source Sans 3", sans-serif; font-size: 14px; font-weight: 700; }
+
+/* Owner shortcut on the Today screen */
+.quick-post { display: flex; align-items: center; justify-content: center; text-decoration: none; width: 100%; }
+.badge.sched { border-color: var(--gold); color: var(--gold); }
+.bread-card.scheduled { border-style: dashed; border-color: var(--gold-soft); }

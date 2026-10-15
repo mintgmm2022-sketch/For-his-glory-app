@@ -129,3 +129,43 @@ begin
   begin alter publication supabase_realtime add table public.comments; exception when others then null; end;
   begin alter publication supabase_realtime add table public.songs;    exception when others then null; end;
 end $$;
+
+-- ---------- Scheduled Daily Bread and notifications (added October 2026) ----------
+
+create or replace function public.today_local() returns date
+language sql stable as $$ select (now() at time zone 'Europe/Luxembourg')::date $$;
+grant execute on function public.today_local() to anon, authenticated;
+
+-- Visitors only see posts whose date has arrived; the owner sees scheduled ones too.
+drop policy if exists "read bread" on public.bread;
+create policy "read bread" on public.bread for select using (posted_on <= public.today_local() or public.is_owner());
+
+alter table public.bread add column if not exists notified_at timestamptz;
+
+create table if not exists public.push_subscriptions (
+  endpoint   text primary key check (char_length(endpoint) between 10 and 1000 and endpoint like 'https://%'),
+  p256dh     text not null check (char_length(p256dh) between 20 and 200),
+  auth       text not null check (char_length(auth) between 8 and 100),
+  lang       text not null default 'am' check (lang in ('am', 'en')),
+  created_at timestamptz not null default now()
+);
+alter table public.push_subscriptions enable row level security;
+
+create or replace function public.subscribe_push(p_endpoint text, p_p256dh text, p_auth text, p_lang text default 'am')
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.push_subscriptions (endpoint, p256dh, auth, lang)
+  values (p_endpoint, p_p256dh, p_auth, coalesce(p_lang, 'am'))
+  on conflict (endpoint) do update set p256dh = excluded.p256dh, auth = excluded.auth, lang = excluded.lang;
+end $$;
+
+create or replace function public.unsubscribe_push(p_endpoint text)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.push_subscriptions where endpoint = p_endpoint;
+end $$;
+
+revoke execute on function public.subscribe_push(text, text, text, text) from public;
+revoke execute on function public.unsubscribe_push(text) from public;
+grant execute on function public.subscribe_push(text, text, text, text) to anon, authenticated;
+grant execute on function public.unsubscribe_push(text) to anon, authenticated;
