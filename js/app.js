@@ -1,6 +1,7 @@
 import { SONGS, BREAD, COMMENTS } from './data.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL, OWNER_READY, VAPID_PUBLIC_KEY, PUSH_READY } from './config.js';
 import { t, getLang, locale, applyStatic } from './i18n.js';
+import { initInstall, showInstall, canShowInstall } from './install.js';
 
 /* =========================================================
    Helpers
@@ -919,6 +920,20 @@ $('#seg-comments').addEventListener('click', () => { state.seg = 'comments'; ren
 $('#prayer-show-name').addEventListener('change', (e) => { $('#prayer-name').hidden = !e.target.checked; if (e.target.checked) $('#prayer-name').value ||= store.get('myName', ''); });
 $('#comment-name').value = store.get('myName', '');
 $('#notify-switch').addEventListener('click', toggleNotify);
+// Install and share
+$('#install-btn').hidden = !canShowInstall();
+$('#install-btn').addEventListener('click', showInstall);
+$('#share-app').addEventListener('click', async () => {
+  const url = 'https://app.mintesinot.org/';
+  const text = 'For His Glory · ለክብሩ: Amharic worship songs with lyrics, Daily Bread every day and a shared Prayer Wall. Open the link to install the app:';
+  try {
+    if (navigator.share) await navigator.share({ title: 'For His Glory', text, url });
+    else { await navigator.clipboard.writeText(text + ' ' + url); toast('Link copied'); }
+  } catch { /* closed share sheet */ }
+});
+document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText('https://app.mintesinot.org/'); b.textContent = 'Link copied ✓'; } catch { /* ignore */ }
+}));
 $('#quick-post').addEventListener('click', () => { state.editBread = null; setTimeout(() => { renderOwner(); $('#b-verse')?.focus(); }, 0); });
 // Refresh: get the newest app version and the latest posts.
 $('#refresh').addEventListener('click', async () => {
@@ -950,6 +965,7 @@ if ('mediaSession' in navigator) {
    Start
    ========================================================= */
 applyStatic();
+initInstall();
 renderToday();
 renderSongs();
 renderBread();

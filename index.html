@@ -6,6 +6,12 @@
 <title>For His Glory · ለክብሩ</title>
 <meta name="description" content="Amharic worship songs, Daily Bread and prayer. Music by Mintesinot Gebremichael.">
 <meta name="theme-color" content="#1B2133">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://app.mintesinot.org/">
+<meta property="og:title" content="For His Glory · ለክብሩ">
+<meta property="og:description" content="Amharic worship songs with lyrics, Daily Bread every day and a shared Prayer Wall. Tap to install the app.">
+<meta property="og:image" content="https://app.mintesinot.org/img/cover.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -63,6 +69,11 @@
           <button class="switch" id="notify-switch" type="button" role="switch" aria-checked="false" aria-label="Daily Bread notifications" data-i18n-aria="notify.title"><span></span></button>
         </div>
         <div class="week" id="week" aria-label="This week"></div>
+      </div>
+
+      <div class="block share-row">
+        <button class="btn secondary" type="button" id="install-btn" hidden>Install app</button>
+        <button class="btn secondary" type="button" id="share-app">Share this app</button>
       </div>
 
       <div class="block card album">
@@ -193,6 +204,67 @@
       </form>
     </div>
   </section>
+
+  <!-- Install helper -->
+  <div class="install" id="install" hidden role="dialog" aria-modal="true" aria-labelledby="install-title">
+    <div class="install-card">
+      <div class="install-head">
+        <img src="icons/icon-192.png" alt="" width="64" height="64">
+        <div>
+          <h2 id="install-title">For His Glory · ለክብሩ</h2>
+          <p class="muted small">Songs, lyrics, Daily Bread and prayer, as an app on your phone.</p>
+        </div>
+      </div>
+
+      <div class="im im-prompt">
+        <button class="btn" type="button" id="install-go">Install app</button>
+        <p class="note">Free · no app store needed · takes 2 seconds</p>
+      </div>
+
+      <div class="im im-ios">
+        <ol class="steps">
+          <li><span class="n">1</span><span>Tap the <b>Share</b> button <svg class="ico" viewBox="0 0 24 24" aria-label="Share icon"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 12v8h14v-8"/></svg> at the bottom of Safari</span></li>
+          <li><span class="n">2</span><span>Scroll down and tap <b>Add to Home Screen</b> <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg></span></li>
+          <li><span class="n">3</span><span>Tap <b>Add</b>. Done, open it from your home screen</span></li>
+        </ol>
+        <div class="point-down" aria-hidden="true">↓</div>
+      </div>
+
+      <div class="im im-ios-other">
+        <p>To install on iPhone, open this link in <b>Safari</b>:</p>
+        <ol class="steps">
+          <li><span class="n">1</span><span>Tap <b>Copy link</b> below</span></li>
+          <li><span class="n">2</span><span>Open <b>Safari</b>, paste it in the address bar and go</span></li>
+          <li><span class="n">3</span><span>Tap <b>Share</b> → <b>Add to Home Screen</b> → <b>Add</b></span></li>
+        </ol>
+        <button class="btn secondary" type="button" data-copy>Copy link</button>
+      </div>
+
+      <div class="im im-inapp">
+        <p>This window can’t install apps. Open the link in your phone’s browser:</p>
+        <ol class="steps">
+          <li><span class="n">1</span><span>Tap <b>⋯</b> or <b>⋮</b> at the top or bottom of this screen</span></li>
+          <li><span class="n">2</span><span>Choose <b>Open in browser</b> (Safari or Chrome)</span></li>
+          <li><span class="n">3</span><span>Follow the install step that appears there</span></li>
+        </ol>
+        <button class="btn secondary" type="button" id="install-copy">Copy link</button>
+      </div>
+
+      <div class="im im-android">
+        <ol class="steps">
+          <li><span class="n">1</span><span>Tap <b>⋮</b> at the top right of Chrome</span></li>
+          <li><span class="n">2</span><span>Tap <b>Install app</b> or <b>Add to Home screen</b></span></li>
+          <li><span class="n">3</span><span>Tap <b>Install</b>. Done</span></li>
+        </ol>
+      </div>
+
+      <div class="im im-desktop">
+        <p>Open <b>app.mintesinot.org</b> on your phone to install it, or use the install icon in your browser’s address bar.</p>
+      </div>
+
+      <button class="link install-later" type="button" id="install-later">Maybe later</button>
+    </div>
+  </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 </div>

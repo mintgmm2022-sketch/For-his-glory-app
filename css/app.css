@@ -248,3 +248,29 @@ svg.fill { fill: #D8DBE4 !important; stroke: none !important; }
 .quick-post { display: flex; align-items: center; justify-content: center; text-decoration: none; width: 100%; }
 .badge.sched { border-color: var(--gold); color: var(--gold); }
 .bread-card.scheduled { border-style: dashed; border-color: var(--gold-soft); }
+
+/* Install helper sheet */
+.install { position: fixed; inset: 0; z-index: 70; background: rgba(10, 12, 22, .6); display: flex; align-items: flex-end; justify-content: center; animation: fade .25s ease-out both; }
+.install-card { width: min(520px, 100%); background: var(--bg-2); border: 1px solid var(--line); border-radius: 26px 26px 0 0; padding: 22px 20px calc(18px + var(--safe-b)); display: flex; flex-direction: column; gap: 14px; animation: up .35s cubic-bezier(.2, .8, .2, 1) both; --tx: 0; }
+.install-head { display: flex; gap: 14px; align-items: center; }
+.install-head img { border-radius: 16px; flex: none; box-shadow: 0 8px 20px rgba(0, 0, 0, .4); }
+.install-head h2 { margin: 0 0 2px; font-family: "Cormorant Garamond", "Noto Serif Ethiopic", serif; font-size: 24px; }
+.install-head p { margin: 0; }
+.install .im { display: none; flex-direction: column; gap: 10px; }
+.install[data-mode="prompt"] .im-prompt,
+.install[data-mode="ios"] .im-ios,
+.install[data-mode="ios-other"] .im-ios-other,
+.install[data-mode="inapp"] .im-inapp,
+.install[data-mode="android"] .im-android,
+.install[data-mode="desktop"] .im-desktop { display: flex; }
+.install p { margin: 0; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.steps li { display: flex; gap: 12px; align-items: center; background: var(--card); border-radius: 14px; padding: 12px 14px; font-size: 16px; }
+.steps .n { width: 28px; height: 28px; flex: none; border-radius: 50%; background: var(--gold); color: var(--ink-dark); display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.steps .ico { width: 20px; height: 20px; vertical-align: -4px; fill: none; stroke: #6EA8FF; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.point-down { text-align: center; font-size: 28px; color: var(--gold); animation: bob 1.2s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+.install-later { align-self: center; border: none; background: none; color: var(--muted); }
+body.sheet-open { overflow: hidden; }
+.share-row { display: flex; gap: 10px; }
+.share-row .btn { flex: 1; }
