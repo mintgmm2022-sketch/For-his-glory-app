@@ -1,4 +1,4 @@
-// App words in Amharic and English. Amharic is the default.
+// App words. The app currently uses English only.
 
 const WORDS = {
   am: {
@@ -199,8 +199,8 @@ const WORDS = {
   }
 };
 
-let lang = 'am';
-try { lang = localStorage.getItem('fhg:lang') === '"en"' ? 'en' : 'am'; } catch { /* storage unavailable */ }
+// The app is shown in English. (The Amharic words above are kept in case they're wanted later.)
+let lang = 'en';
 
 export const getLang = () => lang;
 export const locale = () => (lang === 'am' ? 'am-ET' : 'en-GB');
@@ -224,6 +224,4 @@ export function applyStatic() {
   document.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
   document.querySelectorAll('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
   document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); });
-  const btn = document.getElementById('lang');
-  if (btn) btn.textContent = lang === 'am' ? 'EN' : 'አማ';
 }

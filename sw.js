@@ -1,5 +1,5 @@
 // Keeps the app working offline: the screens, songs' lyrics and saved verses.
-const VERSION = 'fhg-v15';
+const VERSION = 'fhg-v16';
 const SHELL = [
   './',
   'index.html',

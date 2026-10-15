@@ -1,6 +1,6 @@
 import { SONGS, BREAD, COMMENTS } from './data.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL, OWNER_READY, VAPID_PUBLIC_KEY, PUSH_READY } from './config.js';
-import { t, getLang, setLang, locale, applyStatic } from './i18n.js';
+import { t, getLang, locale, applyStatic } from './i18n.js';
 
 /* =========================================================
    Helpers
@@ -920,16 +920,6 @@ $('#prayer-show-name').addEventListener('change', (e) => { $('#prayer-name').hid
 $('#comment-name').value = store.get('myName', '');
 $('#notify-switch').addEventListener('click', toggleNotify);
 $('#quick-post').addEventListener('click', () => { state.editBread = null; setTimeout(() => { renderOwner(); $('#b-verse')?.focus(); }, 0); });
-// Language: switch between Amharic and English everywhere.
-$('#lang').addEventListener('click', () => {
-  setLang(getLang() === 'am' ? 'en' : 'am');
-  renderToday(); renderSongs(); renderBread(); renderTogether(); updatePlayerUI();
-  if (state.notify && db) navigator.serviceWorker?.ready.then((r) => r.pushManager.getSubscription()).then((sub) => {
-    if (!sub) return;
-    const j = sub.toJSON();
-    db.rpc('subscribe_push', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_lang: getLang() });
-  }).catch(() => {});
-});
 // Refresh: get the newest app version and the latest posts.
 $('#refresh').addEventListener('click', async () => {
   const btn = $('#refresh');
