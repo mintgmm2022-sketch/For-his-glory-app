@@ -16,4 +16,4 @@ export const OWNER_READY = true;
 export const VAPID_PUBLIC_KEY = 'BNOqAOE23zN9-hYibku4N6JfB8rFtXOMTYoF8QsuTqFWzrwMCBCBuEWwh54U54UPt_YDScz1pGvJ3oXXPYJE5D0';
 
 // Turns on the Daily Bread notification switch once the server side is set up.
-export const PUSH_READY = false;
+export const PUSH_READY = true;
