@@ -28,18 +28,25 @@ Deno.serve(async (req: Request) => {
 
     const { data: today } = await db.rpc('today_local');
 
-    // Claim today's post so it can only be sent once, even if called twice at the same moment.
+    // Claim today's newest unsent post so it is only sent once, even if called twice at the same moment.
+    const { data: waiting, error: findError } = await db
+      .from('bread')
+      .select('id')
+      .eq('posted_on', today)
+      .is('notified_at', null)
+      .order('id', { ascending: false })
+      .limit(1);
+    if (findError) return json({ error: findError.message }, 500);
+    if (!waiting?.length) return json({ sent: 0, reason: 'nothing new to send' });
     const { data: claimed, error } = await db
       .from('bread')
       .update({ notified_at: new Date().toISOString() })
-      .eq('posted_on', today)
+      .eq('id', waiting[0].id)
       .is('notified_at', null)
-      .select('id, reference, verse_text')
-      .order('id', { ascending: false })
-      .limit(1);
+      .select('id, reference, verse_text');
     if (error) return json({ error: error.message }, 500);
     const post = claimed?.[0];
-    if (!post) return json({ sent: 0, reason: 'nothing new to send' });
+    if (!post) return json({ sent: 0, reason: 'already sent' });
 
     const { data: subs } = await db.from('push_subscriptions').select('endpoint, p256dh, auth, lang');
     const text = (post.verse_text || '').replace(/\s+/g, ' ').trim();
@@ -49,7 +56,7 @@ Deno.serve(async (req: Request) => {
     const gone: string[] = [];
     await Promise.all((subs ?? []).map(async (s) => {
       const payload = JSON.stringify({
-        title: s.lang === 'en' ? 'Daily Bread · የዕለት እንጀራ' : 'የዕለት እንጀራ',
+        title: 'Daily Bread · የዕለት እንጀራ',
         body: (post.reference ? post.reference + ' · ' : '') + short,
         tag: 'bread-' + post.id,
         url: './#today'
