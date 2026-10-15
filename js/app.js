@@ -73,8 +73,20 @@ const state = {
   replies: {},
   replyOpen: null,
   replyDraft: '',
-  repliesShown: new Set()
+  repliesShown: new Set(),
+  songQuery: '',
+  songFilter: 'all',
+  breadFilter: 'all',
+  news: null,
+  pending: 0
 };
+const settings = { approveFirst: false };
+
+// Messages from the database checks (links, blocked words, posting too fast) are shown as they are.
+function friendly(error) {
+  const m = String(error?.message || '');
+  return /Links are not allowed|change the wording|wait a few minutes/.test(m) ? m : t('toast.error');
+}
 
 const local = { prayers: store.get('localPrayers', []), comments: store.get('localComments', []) };
 
@@ -97,7 +109,7 @@ async function connect() {
     const { data } = await db.auth.getSession();
     state.session = data.session;
     db.auth.onAuthStateChange((_e, session) => { state.session = session; checkOwner(); });
-    await Promise.all([loadSongs(), loadBread(), loadPrayers(), loadComments(), loadReplies(), checkOwner()]);
+    await Promise.all([loadSongs(), loadBread(), loadPrayers(), loadComments(), loadReplies(), loadSettings(), loadNews(), checkOwner()]);
     subscribe();
     // Count one app open per phone per day.
     if (store.get('openTracked', '') !== dayKey()) { store.set('openTracked', dayKey()); track('open'); }
@@ -112,6 +124,7 @@ async function checkOwner() {
   state.owner = data === true;
   await Promise.all([loadSongs(), loadBread(), loadPrayers(), loadComments(), loadReplies()]);
   renderOwner(); renderToday(); renderBread(); renderTogether();
+  loadPending();
 }
 
 async function loadSongs() {
@@ -143,6 +156,18 @@ async function loadReplies() {
     renderTogether();
   }
 }
+async function loadSettings() {
+  if (!db) return;
+  const { data } = await db.from('app_settings').select('*');
+  for (const row of data || []) if (row.key === 'approve_first') settings.approveFirst = row.value === true;
+  renderOwner();
+}
+async function loadNews() {
+  if (!db) return;
+  const { data } = await db.from('announcements').select('*').order('created_at', { ascending: false }).limit(1);
+  state.news = data?.[0] || null;
+  renderNews();
+}
 async function loadComments() {
   if (!db) return;
   const { data, error } = await db.from('comments').select('*').order('created_at', { ascending: false }).limit(100);
@@ -160,6 +185,7 @@ function subscribe() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'prayers' }, reload.prayers)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, reload.comments)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'prayer_replies' }, reload.replies)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => loadNews())
     .subscribe();
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') { reload.bread(); reload.prayers(); reload.comments(); reload.replies(); }
@@ -231,9 +257,12 @@ function renderToday() {
       <button type="button" data-share="${b.id}">${esc(t('share'))}</button>
     </div>` : `<span class="eyebrow">${esc(t('bread.label'))}</span><p class="verse">${esc(t('bread.soon'))}</p>`;
 
+  renderNews();
+
   // Owner shortcut: post today's bread, or schedule the next one if today is done.
   const wrap = $('#quick-post-wrap');
   wrap.hidden = !state.owner;
+  loadPending();
   if (state.owner) {
     const hasToday = state.bread.some((x) => x.posted_on === todayLocal());
     $('#quick-post').textContent = t(hasToday ? 'quick.schedule' : 'quick.post');
@@ -258,17 +287,60 @@ function renderToday() {
 /* =========================================================
    Songs
    ========================================================= */
+const HEART = (on) => `<svg viewBox="0 0 24 24" aria-hidden="true" class="heart${on ? ' on' : ''}"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/></svg>`;
+const fav = { songs: new Set(store.get('favSongs', [])), bread: new Set(store.get('favBread', [])) };
+function toggleFav(kind, id) {
+  const set = fav[kind];
+  set.has(id) ? set.delete(id) : set.add(id);
+  store.set(kind === 'songs' ? 'favSongs' : 'favBread', [...set]);
+  if (navigator.vibrate) navigator.vibrate(10);
+  kind === 'songs' ? renderSongs() : renderBread();
+}
+
+// Search: matches titles, verses and lyrics (Amharic or English), ignoring small spelling marks.
+const norm = (s) => String(s || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[፡።፣፤፥፦፧፨,.;:!?…"“”'’()\-]/g, ' ').replace(/\s+/g, ' ').trim();
+function snippet(text, q) {
+  const lines = String(text || '').split('\n');
+  const nq = norm(q);
+  const hit = lines.find((l) => norm(l).includes(nq));
+  return hit ? hit.trim() : '';
+}
+
+// Latest announcement on the Today screen for 3 days (until dismissed).
+function renderNews() {
+  const box = $('#news');
+  if (!box) return;
+  const n = state.news;
+  const fresh = n && Date.now() - new Date(n.created_at) < 3 * 864e5 && store.get('newsSeen', 0) !== n.id;
+  box.hidden = !fresh;
+  if (fresh) {
+    box.innerHTML = `<div class="news-head"><span class="eyebrow">Announcement · ${esc(fmtShort(n.created_at))}</span>
+      <button type="button" class="icon-btn small" data-dismiss-news="${n.id}" aria-label="Dismiss"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="strong news-title">${esc(n.title)}</div>${n.body ? `<p class="news-body">${esc(n.body)}</p>` : ''}`;
+  }
+}
+
 function renderSongs() {
-  const songs = visibleSongs();
-  const cur = songs[state.cur];
-  $('#song-list').innerHTML = songs.map((s, i) => {
+  const all = visibleSongs();
+  const cur = all[state.cur];
+  const q = (state.songQuery || '').trim();
+  const nq = norm(q);
+  let songs = all.map((s, i) => ({ s, i }));
+  if (state.songFilter === 'fav') songs = songs.filter(({ s }) => fav.songs.has(s.id));
+  if (nq) songs = songs.filter(({ s }) => norm([s.title_am, s.title_en, s.verse, s.reference, s.lyrics].join(' ')).includes(nq));
+  document.querySelectorAll('[data-song-filter]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.songFilter === (state.songFilter || 'all')));
+  $('#song-list').innerHTML = songs.map(({ s, i }) => {
     const isCur = cur && cur.id === s.id;
-    return `<button type="button" class="song-row${isCur ? ' current' : ''}" data-play="${s.id}">
-      <span class="num">${String(i + 1).padStart(2, '0')}</span>
-      <span class="grow"><span class="t">${esc(s.title_am)}</span><span class="s">${esc(s.title_en)}</span></span>
-      ${isCur && state.playing ? BARS : PLAY_SVG}
-    </button>`;
-  }).join('') || `<p class="empty">${esc(t('songs.empty'))}</p>`;
+    const line = nq && !norm(s.title_am + ' ' + s.title_en).includes(nq) ? snippet(s.lyrics || s.verse, q) : '';
+    return `<div class="song-row${isCur ? ' current' : ''}">
+      <button type="button" class="song-main" data-play="${s.id}">
+        <span class="num">${String(i + 1).padStart(2, '0')}</span>
+        <span class="grow"><span class="t">${esc(s.title_am)}</span><span class="s">${esc(s.title_en)}</span>${line ? `<span class="hit eth">“${esc(line)}”</span>` : ''}</span>
+        ${isCur && state.playing ? BARS : PLAY_SVG}
+      </button>
+      <button type="button" class="fav-btn" data-fav-song="${s.id}" aria-pressed="${fav.songs.has(s.id)}" aria-label="Favourite">${HEART(fav.songs.has(s.id))}</button>
+    </div>`;
+  }).join('') || `<p class="empty">${esc(q ? 'No song matches “' + q + '”.' : state.songFilter === 'fav' ? 'Tap the ♡ on a song to keep it here.' : t('songs.empty'))}</p>`;
 }
 
 /* =========================================================
@@ -287,6 +359,7 @@ function breadCard(b, extraClass = '', extraAttrs = '') {
         <button type="button" class="chip" data-amen="${b.id}" aria-pressed="${state.amened.has(b.id)}">${state.amened.has(b.id) ? '♥' : '♡'} ${esc(t('amen'))} · ${b.amens}</button>
         ${long ? `<button type="button" class="chip plain" data-whole="${b.id}">${esc(t(whole ? 'read.less' : 'read.all'))}</button>` : ''}
         <button type="button" class="chip plain" data-share="${b.id}">${esc(t('share'))}</button>
+        <button type="button" class="fav-btn small" data-fav-bread="${b.id}" aria-pressed="${fav.bread.has(b.id)}" aria-label="Favourite">${HEART(fav.bread.has(b.id))}</button>
         ${state.owner ? `<button type="button" class="chip plain" data-edit-bread="${b.id}">${esc(t('edit'))}</button>
         <button type="button" class="chip plain danger" data-del-bread="${b.id}">${esc(t('delete'))}</button>` : ''}
       </div>
@@ -314,9 +387,11 @@ function stackify(items, card, label) {
 
 function renderBread() {
   // The owner also sees scheduled posts (marked), newest date first.
-  const list = state.owner ? state.bread : liveBread();
+  let list = state.owner ? state.bread : liveBread();
+  if (state.breadFilter === 'fav') list = list.filter((b) => fav.bread.has(b.id));
+  document.querySelectorAll('[data-bread-filter]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.breadFilter === (state.breadFilter || 'all')));
   $('#bread-list').innerHTML = stackify(list, (b, layer, attrs) => breadCard(b, layer.trim(), attrs), t('bread.earlier'))
-    || `<p class="empty">${esc(t('bread.empty'))}</p>`;
+    || `<p class="empty">${esc(state.breadFilter === 'fav' ? 'Tap the ♡ on a verse to keep it here.' : t('bread.empty'))}</p>`;
 }
 
 async function toggleAmen(id) {
@@ -425,7 +500,8 @@ function renderTogether() {
   const prayers = db ? state.prayers : [...local.prayers, ...state.prayers];
   $('#prayer-list').innerHTML = stackify(prayers, (p, layer) => {
     const mine = state.prayed.has(String(p.id));
-    return `<div class="post${p.hidden ? ' hidden-item' : ''}${layer}">
+    return `<div class="post${p.hidden ? ' hidden-item' : ''}${p.pending ? ' pending' : ''}${layer}">
+      ${p.pending ? pendingBar('prayers', p.id) : ''}
       <div class="msg">${esc(p.message)}</div>
       <div class="by"><span><strong>${esc(p.name || t('anonymous'))}</strong> · ${esc(fmtShort(p.created_at))}</span>
         <span>
@@ -438,11 +514,33 @@ function renderTogether() {
   }, t('prayer.earlier')) || `<p class="empty">${esc(t('prayer.empty'))}</p>`;
 
   const comments = db ? state.comments : [...local.comments, ...state.comments];
-  $('#comment-list').innerHTML = stackify(comments, (c, layer) => `<div class="post${c.hidden ? ' hidden-item' : ''}${layer}">
+  $('#comment-list').innerHTML = stackify(comments, (c, layer) => `<div class="post${c.hidden ? ' hidden-item' : ''}${c.pending ? ' pending' : ''}${layer}">
+      ${c.pending ? pendingBar('comments', c.id) : ''}
       <div class="by"><strong>${esc(!c.name || c.name === 'Anonymous' ? t('anonymous') : c.name)}</strong><span>${esc(fmtShort(c.created_at))}</span></div>
       <div class="msg">${esc(c.message)}</div>
       ${state.owner ? `<div class="by"><span></span><span>${ownerTools('comments', c)}</span></div>` : ''}
     </div>`, t('comment.earlier')) || `<p class="empty">${esc(t('comment.empty'))}</p>`;
+}
+
+function pendingBar(table, id) {
+  if (!state.owner) return '';
+  return `<div class="pending-bar"><span>Waiting for approval</span><button type="button" class="chip" data-approve="${table}:${id}">Approve</button></div>`;
+}
+
+async function approve(table, id) {
+  const { error } = await db.from(table).update({ pending: false }).eq('id', id);
+  if (error) { toast('Could not approve'); return; }
+  toast('Approved, now visible to everyone');
+  if (table === 'prayers') loadPrayers(); else if (table === 'comments') loadComments(); else loadReplies();
+  loadPending();
+}
+
+async function loadPending() {
+  if (!db || !state.owner) { state.pending = 0; return; }
+  const { data } = await db.rpc('pending_count');
+  state.pending = Number(data) || 0;
+  const el = $('#pending-note');
+  if (el) { el.hidden = !state.pending; el.textContent = `${state.pending} waiting for your approval in Together →`; }
 }
 
 // Replies under a prayer: the latest two show, the rest open with "Show all".
@@ -454,14 +552,15 @@ function repliesBlock(p) {
   const open = state.replyOpen === p.id;
   return `<div class="replies">
     ${all.length > list.length ? `<button type="button" class="chip plain small-chip" data-replies-all="${p.id}">Show all ${all.length} replies</button>` : ''}
-    ${list.map((r) => `<div class="reply${r.hidden ? ' hidden-item' : ''}">
+    ${list.map((r) => `<div class="reply${r.hidden ? ' hidden-item' : ''}${r.by_owner ? ' by-owner' : ''}${r.pending ? ' pending' : ''}">
+      ${r.pending ? pendingBar('prayer_replies', r.id) : ''}
       <div class="reply-msg">${esc(r.message)}</div>
-      <div class="reply-by"><span><strong>${esc(r.name || t('anonymous'))}</strong> · ${esc(fmtShort(r.created_at))}</span>
+      <div class="reply-by"><span>${r.by_owner ? '<strong class="owner-name">Mintesinot <span aria-label="verified">✓</span></strong>' : `<strong>${esc(r.name || t('anonymous'))}</strong>`} · ${esc(fmtShort(r.created_at))}</span>
         ${state.owner ? `<span>${ownerTools('prayer_replies', r)}</span>` : ''}</div>
     </div>`).join('')}
     ${open ? `<form class="reply-form" data-reply-form="${p.id}">
         <textarea rows="2" maxlength="600" placeholder="Write an encouraging word or a short prayer…" aria-label="Your reply" required>${esc(state.replyDraft)}</textarea>
-        <input class="input" maxlength="60" placeholder="Your name (optional)" aria-label="Your name" value="${esc(store.get('myName', ''))}">
+        ${state.owner ? '<p class="note">Your reply shows as “Mintesinot ✓”.</p><input type="hidden" value="">' : `<input class="input" maxlength="60" placeholder="Your name (optional)" aria-label="Your name" value="${esc(store.get('myName', ''))}">`}
         <div class="two">
           <button type="button" class="btn secondary" data-reply-cancel>Cancel</button>
           <button type="submit" class="btn">Send</button>
@@ -480,12 +579,12 @@ async function sendReply(form) {
   btn.disabled = true;
   const { error } = await db.from('prayer_replies').insert({ prayer_id: prayerId, message, name });
   btn.disabled = false;
-  if (error) { toast(t('toast.error')); return; }
+  if (error) { toast(friendly(error)); return; }
   state.replyOpen = null;
   state.replyDraft = '';
   state.repliesShown.add(prayerId);
   await loadReplies();
-  toast('Reply sent');
+  toast(settings.approveFirst && !state.owner ? 'Thank you! Your reply will appear once it’s approved.' : 'Reply sent');
 }
 
 function ownerTools(table, row) {
@@ -503,7 +602,8 @@ async function sharePrayer(e) {
   if (db) {
     const { error } = await db.from('prayers').insert({ message, name });
     btn.disabled = false;
-    if (error) { toast(t('toast.error')); return; }
+    if (error) { toast(friendly(error)); return; }
+    if (settings.approveFirst) { $('#prayer-text').value = ''; toast('Thank you! Your prayer will appear once it’s approved.'); return; }
     await loadPrayers();
   } else {
     local.prayers.unshift({ id: 'l' + Date.now(), message, name, prayed: 0, created_at: new Date().toISOString() });
@@ -542,7 +642,8 @@ async function sendComment(e) {
   if (db) {
     const { error } = await db.from('comments').insert({ message, name });
     btn.disabled = false;
-    if (error) { toast(t('toast.error')); return; }
+    if (error) { toast(friendly(error)); return; }
+    if (settings.approveFirst) { $('#comment-text').value = ''; toast('Thank you! Your comment will appear once it’s approved.'); return; }
     await loadComments();
   } else {
     local.comments.unshift({ id: 'l' + Date.now(), message, name, created_at: new Date().toISOString() });
@@ -849,6 +950,30 @@ function renderOwner() {
     </details>
     ${scheduledList()}
 
+    <details class="editor" id="news-editor">
+      <summary><span class="grow strong">Send an announcement</span></summary>
+      <form class="form" id="news-form">
+        <p class="note">Goes to every phone with notifications on, and shows on the Today screen for 3 days.</p>
+        <label for="n-title">Title</label><input class="input" id="n-title" maxlength="80" placeholder="New song on YouTube today!" required>
+        <label for="n-body">Message (optional)</label><textarea id="n-body" rows="3" maxlength="300" placeholder="Short message…"></textarea>
+        <button class="btn" type="submit" id="n-send">Send to everyone</button>
+      </form>
+    </details>
+
+    <details class="editor" id="guard-editor">
+      <summary><span class="grow strong">Prayer Wall protection</span></summary>
+      <div class="form">
+        <div class="row-between">
+          <div><div class="strong">Approve new posts first</div><div class="muted small">New prayers, replies and comments wait for your Approve before anyone sees them.</div></div>
+          <button class="switch" id="approve-switch" type="button" role="switch" aria-checked="${settings.approveFirst}" aria-label="Approve new posts first"><span></span></button>
+        </div>
+        <p class="note">Always on: links are blocked, and one phone can post at most 5 times in 10 minutes.</p>
+        <label for="w-new">Blocked words</label>
+        <div class="words" id="words"><span class="muted small">Loading…</span></div>
+        <form class="word-add" id="word-form"><input class="input" id="w-new" maxlength="60" placeholder="Add a word (Amharic or English)"><button class="btn secondary" type="submit">Add</button></form>
+      </div>
+    </details>
+
     <div class="label" style="margin-top:14px">Songs &amp; lyrics</div>
     ${[null, ...songs].map(songEditor).join('')}
 
@@ -866,6 +991,54 @@ function renderOwner() {
   hint();
   $('#b-cancel')?.addEventListener('click', () => { state.editBread = null; renderOwner(); });
   loadStats();
+  loadWords();
+  $('#approve-switch').addEventListener('click', toggleApproveFirst);
+}
+
+async function sendNews(e) {
+  e.preventDefault();
+  const title = $('#n-title').value.trim();
+  const body = $('#n-body').value.trim();
+  if (!title) return;
+  if (!confirm(`Send “${title}” to everyone now?`)) return;
+  const btn = $('#n-send');
+  btn.disabled = true;
+  const { data, error } = await db.functions.invoke('send-announcement', { body: { title, body } });
+  btn.disabled = false;
+  if (error || data?.error) { toast('Could not send: ' + (data?.error || error.message)); return; }
+  toast(`Sent to ${data.sent} phone${data.sent === 1 ? '' : 's'}`);
+  $('#n-title').value = ''; $('#n-body').value = '';
+  loadNews();
+}
+
+async function toggleApproveFirst() {
+  const next = !settings.approveFirst;
+  const { error } = await db.from('app_settings').upsert({ key: 'approve_first', value: next });
+  if (error) { toast('Could not change the setting'); return; }
+  settings.approveFirst = next;
+  $('#approve-switch').setAttribute('aria-checked', next);
+  toast(next ? 'New posts now wait for your approval' : 'New posts appear right away');
+}
+
+async function loadWords() {
+  const box = $('#words');
+  if (!box || !db) return;
+  const { data } = await db.from('blocked_words').select('word').order('word');
+  box.innerHTML = (data || []).map((w) => `<span class="word">${esc(w.word)}<button type="button" data-unblock="${esc(w.word)}" aria-label="Remove ${esc(w.word)}">×</button></span>`).join('') || '<span class="muted small">No words yet.</span>';
+}
+async function addWord(e) {
+  e.preventDefault();
+  const word = $('#w-new').value.trim().toLowerCase();
+  if (word.length < 2) return;
+  const { error } = await db.from('blocked_words').upsert({ word });
+  if (error) { toast('Could not add'); return; }
+  $('#w-new').value = '';
+  loadWords();
+}
+async function unblockWord(word) {
+  const { error } = await db.from('blocked_words').delete().eq('word', word);
+  if (error) { toast('Could not remove'); return; }
+  loadWords();
 }
 
 // Owner stats: how the app is being used (anonymous counts only).
@@ -1069,6 +1242,13 @@ document.addEventListener('click', (e) => {
   else if (d.del) { const [table, id] = d.del.split(':'); remove(table, Number(id)); }
   else if (d.delBread) remove('bread', Number(d.delBread));
   else if (d.editBread) editBread(Number(d.editBread));
+  else if (d.favSong) toggleFav('songs', Number(d.favSong));
+  else if (d.favBread) toggleFav('bread', Number(d.favBread));
+  else if (d.songFilter) { state.songFilter = d.songFilter; renderSongs(); }
+  else if (d.breadFilter) { state.breadFilter = d.breadFilter; renderBread(); }
+  else if (d.approve) { const [table, id] = d.approve.split(':'); approve(table, Number(id)); }
+  else if (d.dismissNews) { store.set('newsSeen', Number(d.dismissNews)); renderNews(); }
+  else if (d.unblock) unblockWord(d.unblock);
   else if (d.reply) { state.replyOpen = Number(d.reply); state.replyDraft = ''; renderTogether(); setTimeout(() => document.querySelector(`[data-reply-form="${d.reply}"] textarea`)?.focus(), 0); }
   else if ('replyCancel' in d) { state.replyOpen = null; state.replyDraft = ''; renderTogether(); }
   else if (d.repliesAll) { state.repliesShown.add(Number(d.repliesAll)); renderTogether(); }
@@ -1094,8 +1274,11 @@ document.addEventListener('submit', (e) => {
   else if (f.id === 'bread-form') publishBread(e);
   else if (f.dataset.songForm) { e.preventDefault(); saveSong(f); }
   else if (f.dataset.replyForm) { e.preventDefault(); sendReply(f); }
+  else if (f.id === 'news-form') sendNews(e);
+  else if (f.id === 'word-form') addWord(e);
 });
 
+$('#song-search').addEventListener('input', (e) => { state.songQuery = e.target.value; renderSongs(); });
 $('#seg-prayers').addEventListener('click', () => { state.seg = 'prayers'; renderTogether(); });
 $('#seg-comments').addEventListener('click', () => { state.seg = 'comments'; renderTogether(); });
 $('#prayer-show-name').addEventListener('change', (e) => { $('#prayer-name').hidden = !e.target.checked; if (e.target.checked) $('#prayer-name').value ||= store.get('myName', ''); });

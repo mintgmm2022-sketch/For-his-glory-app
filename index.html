@@ -54,7 +54,12 @@
 
       <article class="bread-hero" id="today-bread" aria-live="polite"></article>
 
-      <div class="block" id="quick-post-wrap" hidden><a class="btn quick-post" id="quick-post" href="#owner"></a></div>
+      <div class="block news" id="news" hidden aria-live="polite"></div>
+
+      <div class="block" id="quick-post-wrap" hidden>
+        <a class="btn quick-post" id="quick-post" href="#owner"></a>
+        <a class="pending-note" id="pending-note" href="#together" hidden></a>
+      </div>
 
       <div class="block">
         <div class="label" data-i18n="today.song">Song for today</div>
@@ -91,6 +96,14 @@
     <section id="view-songs" class="view page" aria-label="Songs" hidden>
       <h1 class="display" data-i18n="songs.title">Songs</h1>
       <div class="eth gold sub" data-i18n="songs.sub">መዝሙሮች · tap a song to listen and pray</div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="song-search" type="search" placeholder="Search songs and lyrics" aria-label="Search songs and lyrics" autocomplete="off">
+      </div>
+      <div class="filters" role="group" aria-label="Show">
+        <button type="button" class="chip" data-song-filter="all" aria-pressed="true">All</button>
+        <button type="button" class="chip" data-song-filter="fav" aria-pressed="false">♥ Favourites</button>
+      </div>
       <div class="list" id="song-list"></div>
       <a class="link" href="https://www.youtube.com/@mintesinot_gebremichael" target="_blank" rel="noopener" data-i18n="songs.youtube">All songs on YouTube ↗</a>
     </section>
@@ -99,6 +112,10 @@
     <section id="view-bread" class="view page" aria-label="Daily Bread" hidden>
       <h1 class="display" data-i18n="bread.title">Daily Bread</h1>
       <div class="eth gold sub" data-i18n="bread.sub">የዕለት እንጀራ · verses to carry into the day</div>
+      <div class="filters" role="group" aria-label="Show">
+        <button type="button" class="chip" data-bread-filter="all" aria-pressed="true">All</button>
+        <button type="button" class="chip" data-bread-filter="fav" aria-pressed="false">♥ Favourites</button>
+      </div>
       <div class="list" id="bread-list"></div>
     </section>
 

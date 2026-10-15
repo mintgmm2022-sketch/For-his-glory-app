@@ -315,3 +315,41 @@ body.on-today .bg { display: none; }
 
 .refresh-tap { transition: transform .25s ease, opacity .25s ease; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .refresh-tap.tucked { transform: translateY(-70px); opacity: 0; pointer-events: none; }
+
+/* Song rows with a favourite heart, search and filters */
+.song-row { padding: 0; gap: 0; }
+.song-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 12px 6px 12px 14px; background: none; border: none; color: inherit; text-align: left; font: inherit; }
+.song-row .hit { display: block; margin-top: 4px; font-size: 14px; color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fav-btn { width: 48px; height: 48px; flex: none; display: grid; place-items: center; background: none; border: none; padding: 0; }
+.fav-btn.small { width: 40px; height: 40px; margin-left: auto; }
+.heart { width: 22px; height: 22px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linejoin: round; transition: transform .2s ease; }
+.heart.on { fill: #F08A9B; stroke: #F08A9B; transform: scale(1.08); }
+.search { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line-2); border-radius: 999px; padding: 0 16px; min-height: 48px; }
+.search svg { width: 20px; height: 20px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; flex: none; }
+.search input { flex: 1; min-width: 0; border: none; background: none; color: var(--ink); font: inherit; outline: none; min-height: 46px; }
+.filters { display: flex; gap: 8px; }
+.filters .chip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--ink-dark); }
+
+/* Announcement on Today */
+.news { background: linear-gradient(135deg, rgba(227, 196, 142, .2), rgba(227, 196, 142, .06)); border: 1px solid var(--gold-soft); border-radius: 20px; padding: 14px 16px; }
+.news-head { display: flex; align-items: center; justify-content: space-between; }
+.news-title { font-size: 18px; margin-top: 2px; }
+.news-body { margin: 4px 0 0; color: #E2E4EB; white-space: pre-line; }
+.icon-btn.small { width: 36px; height: 36px; background: transparent; }
+.icon-btn.small svg { width: 16px; height: 16px; }
+
+/* Waiting for approval, owner badge, blocked words */
+.post.pending, .reply.pending { border-style: dashed; border-color: var(--gold-soft); }
+.pending-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--gold); font-weight: 600; }
+.pending-note { display: block; margin-top: 8px; color: var(--gold); font-weight: 600; text-decoration: none; }
+.reply.by-owner { border-left-color: var(--gold); background: rgba(227, 196, 142, .07); border-radius: 0 10px 10px 0; padding-right: 8px; }
+.owner-name { color: var(--gold) !important; }
+.words { display: flex; flex-wrap: wrap; gap: 6px; }
+.word { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--line-2); border-radius: 999px; padding: 4px 4px 4px 12px; font-size: 14px; }
+.word button { width: 28px; height: 28px; border: none; background: none; color: var(--muted); font-size: 18px; line-height: 1; }
+.word-add { display: flex; gap: 8px; }
+.word-add .input { flex: 1; }
+
+details.editor > .form { padding: 0 16px 16px; }
+details.editor + details.editor, .list + details.editor { margin-top: 10px; }
+#owner-body > details.editor { margin-bottom: 10px; }
