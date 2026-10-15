@@ -156,6 +156,7 @@ const VIEWS = ['today', 'songs', 'bread', 'together', 'owner'];
 function route() {
   const name = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'today';
   for (const v of VIEWS) $('#view-' + v).hidden = v !== name;
+  document.body.classList.toggle('on-today', name === 'today');
   document.querySelectorAll('.tabbar a').forEach((a) => {
     if (a.dataset.tab === name) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
